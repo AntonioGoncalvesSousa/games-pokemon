@@ -18,9 +18,9 @@ import {
 } from '../utils/pokemon';
 import { getEvolutionStageFromChain } from '../utils/evolution';
 
-const MAX_ATTEMPTS = 20;
+const DEFAULT_MAX_ATTEMPTS = 20;
 
-function PokemonGuess({ onBack }) {
+function PokemonGuess({ onBack, initialPokemonList = null, maxAttempts = DEFAULT_MAX_ATTEMPTS }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [pokemonList, setPokemonList] = useState([]);
@@ -34,7 +34,7 @@ function PokemonGuess({ onBack }) {
     try {
       setIsLoading(true);
       setError('');
-      const list = await getPokemonListPage(0, 1200);
+      const list = initialPokemonList || await getPokemonListPage(0, 1200);
       setPokemonList(list);
     } catch (loadError) {
       setError('Não foi possível carregar os dados do Pokémon.');
@@ -52,7 +52,7 @@ function PokemonGuess({ onBack }) {
     setIsLoading(true);
 
     try {
-      const list = await getPokemonListPage(0, 1200);
+      const list = initialPokemonList || await getPokemonListPage(0, 1200);
       setPokemonList(list);
       const randomIndex = Math.floor(Math.random() * list.length);
       const randomPokemon = list[randomIndex];
@@ -120,13 +120,14 @@ function PokemonGuess({ onBack }) {
 
       const detailedPokemon = await buildPokemonProfile(pokemonData, speciesData, evolutionChain);
       const nextAttempts = attempts + 1;
+      const guessWithOrder = { ...detailedPokemon, order: nextAttempts };
       setUsedPokemon((prev) => new Set(prev).add(normalizedGuess));
-      setGuesses((prev) => [...prev, detailedPokemon]);
+      setGuesses((prev) => [...prev, guessWithOrder]);
       setAttempts(nextAttempts);
 
       if (detailedPokemon.name === secretPokemon.name) {
         setResultState('win');
-      } else if (nextAttempts >= MAX_ATTEMPTS) {
+      } else if (Number.isFinite(maxAttempts) && nextAttempts >= maxAttempts) {
         setResultState('lose');
       }
     } catch (guessError) {
@@ -135,13 +136,39 @@ function PokemonGuess({ onBack }) {
   };
 
   const guessesSummary = useMemo(() => {
-    return guesses.map((guess) => ({
-      ...guess,
-      name: formatPokemonName(guess.name),
-    }));
-  }, [guesses]);
+    const getGuessScore = (guess, secret) => {
+      if (!secret) return 0;
 
-  const statusText = `${attempts} / ${MAX_ATTEMPTS}`;
+      let score = 0;
+
+      if (guess.types[0]?.type?.name === secret.types[0]?.type?.name) score += 1;
+      if ((!guess.types[1] && !secret.types[1]) || guess.types[1]?.type?.name === secret.types[1]?.type?.name) score += 1;
+      if (guess.generation === secret.generation) score += 1;
+      if (guess.habitat === secret.habitat) score += 1;
+      if (guess.color === secret.color) score += 1;
+      if (guess.evolution === secret.evolution) score += 1;
+      if (guess.heightValue === secret.heightValue) score += 1;
+      if (guess.weightValue === secret.weightValue) score += 1;
+
+      return score;
+    };
+
+    return [...guesses]
+      .map((guess) => ({
+        ...guess,
+        score: getGuessScore(guess, secretPokemon),
+        name: formatPokemonName(guess.name),
+      }))
+      .sort((left, right) => {
+        if (right.score !== left.score) {
+          return right.score - left.score;
+        }
+
+        return (right.order ?? 0) - (left.order ?? 0);
+      });
+  }, [guesses, secretPokemon]);
+
+  const statusText = Number.isFinite(maxAttempts) ? `${attempts} / ${maxAttempts}` : `${attempts} / ∞`;
 
   if (isLoading && !secretPokemon) {
     return (

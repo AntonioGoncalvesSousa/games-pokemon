@@ -17,7 +17,16 @@ function GuessRow({ guess, secret }) {
 
   return (
     <tr>
-      <td className="guess-name">{formatPokemonName(guess.name)}</td>
+      <td className="guess-name">
+        <div className="guess-pokemon">
+          {guess.sprite ? (
+            <img className="guess-sprite" src={guess.sprite} alt={formatPokemonName(guess.name)} />
+          ) : (
+            <span className="guess-sprite guess-sprite--fallback">?</span>
+          )}
+          <span>{formatPokemonName(guess.name)}</span>
+        </div>
+      </td>
       <td className={getComparisonClass(type1Match)}>{guess.types[0]?.type?.name || '—'}</td>
       <td className={getComparisonClass(type2Match)}>{guess.types[1]?.type?.name || '—'}</td>
       <td className={getComparisonClass(generationMatch)}>{guess.generation}</td>
