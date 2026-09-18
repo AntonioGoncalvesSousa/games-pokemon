@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import GuessTable from '../components/GuessTable';
 import Loading from '../components/Loading';
 import PokemonSearch from '../components/PokemonSearch';
 import ResultModal from '../components/ResultModal';
+import { sendGameFinishedEmail } from '../services/gameEmail';
 import { getEvolutionChainById, getPokemonByNameOrId, getPokemonListPage, getPokemonSpeciesByNameOrId } from '../services/pokeApi';
 import {
   formatHeight,
@@ -29,6 +30,7 @@ function PokemonGuess({ onBack, initialPokemonList = null, maxAttempts = DEFAULT
   const [guesses, setGuesses] = useState([]);
   const [usedPokemon, setUsedPokemon] = useState(new Set());
   const [resultState, setResultState] = useState(null);
+  const emailSentRef = useRef(false);
 
   const loadBasePokemonList = async () => {
     try {
@@ -44,6 +46,7 @@ function PokemonGuess({ onBack, initialPokemonList = null, maxAttempts = DEFAULT
   };
 
   const startNewGame = async () => {
+    emailSentRef.current = false;
     setAttempts(0);
     setGuesses([]);
     setUsedPokemon(new Set());
@@ -100,6 +103,20 @@ function PokemonGuess({ onBack, initialPokemonList = null, maxAttempts = DEFAULT
   useEffect(() => {
     startNewGame();
   }, []);
+
+  useEffect(() => {
+    if (!resultState || !secretPokemon || emailSentRef.current) return;
+
+    emailSentRef.current = true;
+    sendGameFinishedEmail({
+      game: 'Pokémon Guess',
+      score: resultState === 'win' ? 1 : 0,
+      playedAt: new Date().toLocaleString('pt-BR'),
+      details: `${resultState === 'win' ? 'Vitória' : 'Derrota'} em ${attempts} tentativa(s). Pokémon: ${formatPokemonName(secretPokemon.name)}`,
+    }).catch(() => {
+      console.error('Não foi possível enviar o resultado do jogo por e-mail.');
+    });
+  }, [attempts, resultState, secretPokemon]);
 
   const handleGuess = async (pokemonName) => {
     const normalizedGuess = normalizeName(pokemonName);

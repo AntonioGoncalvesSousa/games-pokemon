@@ -1,18 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import PokemonSearch from '../components/PokemonSearch';
 import Loading from '../components/Loading';
 import { getPokemonByNameOrId } from '../services/pokeApi';
+import { sendGameFinishedEmail } from '../services/gameEmail';
 import { formatPokemonName, getPokemonSpriteUrl, normalizeName } from '../utils/pokemon';
 
 function GuessByImage({ isShadowMode = false, onBack, pokemonList, duration, canSkip }) {
   const [currentPokemon, setCurrentPokemon] = useState(null);
   const [usedPokemon, setUsedPokemon] = useState(new Set());
-  const [query, setQuery] = useState('');
   const [score, setScore] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(duration);
   const [isLoading, setIsLoading] = useState(true);
   const [isFinished, setIsFinished] = useState(false);
   const [isRevealed, setIsRevealed] = useState(false);
   const [message, setMessage] = useState('');
+  const emailSentRef = useRef(false);
 
   const chooseNextPokemon = async (usedNames = usedPokemon) => {
     const available = pokemonList.filter((pokemon) => !usedNames.has(pokemon.name));
@@ -21,7 +23,6 @@ function GuessByImage({ isShadowMode = false, onBack, pokemonList, duration, can
     const data = await getPokemonByNameOrId(selected.name);
     setCurrentPokemon({ name: data.name, sprite: getPokemonSpriteUrl(data) });
     setUsedPokemon((current) => new Set(current).add(data.name));
-    setQuery('');
   };
 
   useEffect(() => {
@@ -46,6 +47,20 @@ function GuessByImage({ isShadowMode = false, onBack, pokemonList, duration, can
     return () => window.clearInterval(timer);
   }, [currentPokemon, isFinished, isLoading, isRevealed]);
 
+  useEffect(() => {
+    if (!isFinished || emailSentRef.current) return;
+
+    emailSentRef.current = true;
+    sendGameFinishedEmail({
+      game: isShadowMode ? 'Guess by Shadow' : 'Guess by Image',
+      score,
+      playedAt: new Date().toLocaleString('pt-BR'),
+      details: `Pokémon final: ${currentPokemon ? formatPokemonName(currentPokemon.name) : 'indisponível'}`,
+    }).catch(() => {
+      console.error('Não foi possível enviar o resultado do jogo por e-mail.');
+    });
+  }, [currentPokemon, isFinished, isShadowMode, score]);
+
   const continueToNextPokemon = async () => {
     setIsRevealed(false);
     await chooseNextPokemon();
@@ -65,11 +80,10 @@ function GuessByImage({ isShadowMode = false, onBack, pokemonList, duration, can
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFinished, isRevealed]);
 
-  const handleGuess = async (event) => {
-    event.preventDefault();
-    if (!query.trim() || !currentPokemon || isFinished || isRevealed) return;
+  const handleGuess = async (pokemonName) => {
+    if (!pokemonName || !currentPokemon || isFinished || isRevealed) return;
 
-    if (normalizeName(query) === normalizeName(currentPokemon.name)) {
+    if (normalizeName(pokemonName) === normalizeName(currentPokemon.name)) {
       setScore((current) => current + 1);
       setMessage('Acertou!');
       setIsRevealed(true);
@@ -128,17 +142,11 @@ function GuessByImage({ isShadowMode = false, onBack, pokemonList, duration, can
               </button>
             ) : (
               <>
-                <form className="image-guess-form" onSubmit={handleGuess}>
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Digite o nome do Pokémon..."
-                    aria-label="Nome do Pokémon"
-                    autoComplete="off"
-                  />
-                  <button type="submit" className="primary-button">Adivinhar</button>
-                </form>
+                <PokemonSearch
+                  pokemons={pokemonList}
+                  onSelect={handleGuess}
+                  disabled={isFinished || isRevealed || !currentPokemon}
+                />
                 {canSkip && <button type="button" className="skip-button" onClick={handleSkip}>Passar Pokémon</button>}
               </>
             )}
