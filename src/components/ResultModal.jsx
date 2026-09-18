@@ -1,4 +1,4 @@
-function ResultModal({ isOpen, result, secretPokemon, attempts, onRetry, onBack }) {
+function ResultModal({ isOpen, result, secretPokemon, attempts, resultForm, onRetry, onBack }) {
   if (!isOpen || !secretPokemon) return null;
 
   return (
@@ -21,6 +21,7 @@ function ResultModal({ isOpen, result, secretPokemon, attempts, onRetry, onBack 
           {result === 'win' ? 'Você descobriu em:' : 'Tentativas:'} {attempts} / 20
         </p>
 
+        {resultForm}
         <div className="modal-actions">
           <button className="primary-button" type="button" onClick={onRetry}>
             Jogar novamente

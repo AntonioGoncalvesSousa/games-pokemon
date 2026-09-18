@@ -413,6 +413,10 @@ h2 {
   color: rgba(255, 255, 255, 0.78);
 }
 
+.game-result-form {
+  margin: 1rem 0;
+}
+
 .image-game-finished .revealed-pokemon-name {
   margin: 0.25rem 0 1rem;
 }

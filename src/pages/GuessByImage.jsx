@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import GameResultForm from '../components/GameResultForm';
 import PokemonSearch from '../components/PokemonSearch';
 import Loading from '../components/Loading';
 import { getPokemonByNameOrId } from '../services/pokeApi';
-import { sendGameFinishedEmail } from '../services/gameEmail';
 import { formatPokemonName, getPokemonSpriteUrl, normalizeName } from '../utils/pokemon';
 
 function GuessByImage({ isShadowMode = false, onBack, pokemonList, duration, canSkip }) {
@@ -14,7 +14,6 @@ function GuessByImage({ isShadowMode = false, onBack, pokemonList, duration, can
   const [isFinished, setIsFinished] = useState(false);
   const [isRevealed, setIsRevealed] = useState(false);
   const [message, setMessage] = useState('');
-  const emailSentRef = useRef(false);
 
   const chooseNextPokemon = async (usedNames = usedPokemon) => {
     const available = pokemonList.filter((pokemon) => !usedNames.has(pokemon.name));
@@ -46,20 +45,6 @@ function GuessByImage({ isShadowMode = false, onBack, pokemonList, duration, can
 
     return () => window.clearInterval(timer);
   }, [currentPokemon, isFinished, isLoading, isRevealed]);
-
-  useEffect(() => {
-    if (!isFinished || emailSentRef.current) return;
-
-    emailSentRef.current = true;
-    sendGameFinishedEmail({
-      game: isShadowMode ? 'Guess by Shadow' : 'Guess by Image',
-      score,
-      playedAt: new Date().toLocaleString('pt-BR'),
-      details: `Pokémon final: ${currentPokemon ? formatPokemonName(currentPokemon.name) : 'indisponível'}`,
-    }).catch(() => {
-      console.error('Não foi possível enviar o resultado do jogo por e-mail.');
-    });
-  }, [currentPokemon, isFinished, isShadowMode, score]);
 
   const continueToNextPokemon = async () => {
     setIsRevealed(false);
@@ -163,6 +148,11 @@ function GuessByImage({ isShadowMode = false, onBack, pokemonList, duration, can
             />
             <p className="revealed-pokemon-name">{formatPokemonName(currentPokemon.name)}</p>
             <p>Você fez {score} ponto{score === 1 ? '' : 's'}.</p>
+            <GameResultForm
+              game={isShadowMode ? 'Guess by Shadow' : 'Guess by Image'}
+              score={score}
+              details={`Pokémon final: ${currentPokemon ? formatPokemonName(currentPokemon.name) : 'indisponível'}`}
+            />
             <button type="button" className="primary-button" onClick={onBack}>Voltar ao menu</button>
           </div>
         )}
