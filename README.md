@@ -12,4 +12,5 @@ Projeto de jogo interativo sobre Pokémon, com desafios de adivinhação e filtr
 
 ## Objetivo
 
-Explorar e adivinhar Pokémon por imagem, nome, geração e outras informações, usando a API oficial do Pokémon para buscar dados em tempo real.
+1. Explorar e adivinhar Pokémon por imagem, nome, geração e outras informações, usando a API oficial do Pokémon para buscar dados em tempo real.
+2. A gatinha me notar :(
